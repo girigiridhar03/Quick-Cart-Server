@@ -67,7 +67,6 @@ export const login = asyncHandler(async (req, res) => {
   const isLocked = userExist.lockedUntil && userExist.lockedUntil > new Date();
 
   if (isLocked) {
-    console.log(new Date(userExist.lockedUntil).toLocaleString(),new Date().toLocaleString());
     throw new AppError("Account is locked. Try again later", 423);
   }
 
