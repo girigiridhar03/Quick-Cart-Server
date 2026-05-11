@@ -1,11 +1,23 @@
 import User from "../models/user.model.js";
 import AppError from "../utils/AppError.js";
-import { clearCookies, setAuthCookies } from "../utils/cookies.js";
+import {
+  clearCookies,
+  createCSRFOptions,
+  createTokenOptions,
+  setAuthCookies,
+} from "../utils/cookies.js";
 import { asyncHandler } from "../utils/handler.js";
 import bcrypt from "bcryptjs";
 import response from "../utils/response.js";
 import logger from "../utils/logger.js";
 import mongoose from "mongoose";
+import { ACCESS_TOKEN, CSRF_TOKEN, REFRESH_TOKEN } from "../utils/constant.js";
+import jwt from "jsonwebtoken";
+import {
+  createAccessToken,
+  createCSRFToken,
+  createRefreshToken,
+} from "../utils/jwt.js";
 
 const MAX_ATTEMPTS = 5;
 const LOCK_TIME = 15 * 60 * 1000;
@@ -50,8 +62,8 @@ export const register = asyncHandler(async (req, res) => {
     username: newUser.username,
     email: newUser.email,
     role: newUser.role,
-    refreshMaxAge,
-    accessMaxAge,
+    accessTokenExpiresAt: Date.now() + accessMaxAge,
+    refreshTokenExpiresAt: Date.now() + refreshMaxAge,
   });
 });
 
@@ -110,8 +122,8 @@ export const login = asyncHandler(async (req, res) => {
     username: userExist.username,
     email: userExist.email,
     role: userExist.role,
-    refreshMaxAge,
-    accessMaxAge,
+    accessTokenExpiresAt: Date.now() + accessMaxAge,
+    refreshTokenExpiresAt: Date.now() + refreshMaxAge,
   });
 });
 
@@ -146,4 +158,72 @@ export const logout = asyncHandler(async (req, res) => {
   clearCookies(res);
 
   return response(res, 200, "User logged out successfully");
+});
+
+export const refreshToken = asyncHandler(async (req, res) => {
+  const oldRefreshToken = req.cookies?.[REFRESH_TOKEN];
+
+  if (!oldRefreshToken) {
+    throw new AppError("Unauthorized", 401);
+  }
+
+  let decodedToken;
+
+  try {
+    decodedToken = jwt.verify(oldRefreshToken, process.env.REFRESH_SECRET);
+  } catch (error) {
+    throw new AppError("Unauthorized", 401);
+  }
+
+  const user = await User.findById(decodedToken.id);
+
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  const isRefreshToken = await bcrypt.compare(
+    oldRefreshToken,
+    user.refreshToken,
+  );
+
+  if (!isRefreshToken) {
+    throw new AppError("Invalid Refresh token");
+  }
+
+  const updatedTokenVersion = user.tokenVersion + 1;
+
+  const accessToken = createAccessToken(
+    user._id,
+    user.role,
+    updatedTokenVersion,
+  );
+  const refreshToken = createRefreshToken(
+    user._id,
+    user.role,
+    updatedTokenVersion,
+  );
+
+  const csrfToken = createCSRFToken();
+
+  const accessMaxAge = 15 * 60 * 1000;
+  const refreshMaxAge = 7 * 24 * 60 * 60 * 1000;
+
+  res.cookie(ACCESS_TOKEN, accessToken, createTokenOptions(accessMaxAge));
+  res.cookie(REFRESH_TOKEN, refreshToken, createTokenOptions(refreshMaxAge));
+  res.cookie(CSRF_TOKEN, csrfToken, createCSRFOptions(refreshMaxAge));
+
+  const bcryptToken = await bcrypt.hash(refreshToken, 10);
+
+  user.tokenVersion = updatedTokenVersion;
+  user.refreshToken = bcryptToken;
+
+  await user.save();
+
+  return response(res, 200, "Refreshed Token Successfully", {
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    accessTokenExpiresAt: Date.now() + accessMaxAge,
+    refreshTokenExpiresAt: Date.now() + refreshMaxAge,
+  });
 });

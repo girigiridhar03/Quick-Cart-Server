@@ -23,6 +23,12 @@ userRouter.post(
   authMiddleware,
   userControllers.logout,
 );
+userRouter.post(
+  "/refreshToken",
+  csrfMiddleware,
+  authMiddleware,
+  userControllers.refreshToken,
+);
 
 // User Routes
 userRouter.get(
