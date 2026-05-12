@@ -15,12 +15,13 @@ app.use(express.json({ limit: "10kb" }));
 // App Routes
 import response from "./utils/response.js";
 import userRouter from "./routes/user.routes.js";
+import addressRouter from "./routes/address.routes.js";
 app.use("/api/user", userRouter);
+app.use("/api/address", addressRouter);
 app.use((req, res) => response(res, 404, "Route not found"));
 
 // Error Hanlder
 import { errorHandler } from "./utils/handler.js";
-
 app.use(errorHandler);
 
 export default app;

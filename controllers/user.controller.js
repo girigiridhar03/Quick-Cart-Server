@@ -18,12 +18,16 @@ import {
   createCSRFToken,
   createRefreshToken,
 } from "../utils/jwt.js";
+import {
+  deleteFileFromCloudinary,
+  uplaodToCloudinary,
+} from "../config/cloudinary.config.js";
 
 const MAX_ATTEMPTS = 5;
 const LOCK_TIME = 15 * 60 * 1000;
 
 export const register = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, phoneNumber } = req.body;
 
   const userExist = await User.findOne({ email });
 
@@ -37,6 +41,7 @@ export const register = asyncHandler(async (req, res) => {
     username,
     email,
     password: hashPassword,
+    phoneNumber,
   });
 
   const { refreshToken, refreshMaxAge, accessMaxAge } = setAuthCookies({
@@ -226,4 +231,48 @@ export const refreshToken = asyncHandler(async (req, res) => {
     accessTokenExpiresAt: Date.now() + accessMaxAge,
     refreshTokenExpiresAt: Date.now() + refreshMaxAge,
   });
+});
+
+export const updateUserDetails = asyncHandler(async (req, res) => {
+  if (!Object.keys(req.body).length) {
+    throw new AppError("Please provide at least one field to update", 400);
+  }
+
+  const { username, phoneNumber } = req.body;
+
+  const userId = req.user.id;
+
+  const user = await User.findById(userId).select(
+    "username phoneNumber profile role",
+  );
+  if (!req.file && !req.body.username && !req.body.phoneNumber) {
+    return response(res, 400, "Please provide at least one field to update");
+  }
+
+  if (username && username !== user.username) user.username = username;
+  if (phoneNumber && phoneNumber !== user.phoneNumber)
+    user.phoneNumber = phoneNumber;
+
+  const image = req.file;
+  let result = null;
+  if (image) {
+    result = await uplaodToCloudinary(image.buffer, "user");
+    if (result) {
+      user.profile = {
+        url: result.secure_url,
+        publicId: result.public_id,
+      };
+    }
+  }
+  try {
+    await user.save();
+  } catch (error) {
+    if (uploadedResult) {
+      await deleteFileFromCloudinary(uploadedResult.public_id);
+    }
+
+    throw error;
+  }
+
+  return response(res, 200, "User Details updated successfully", user);
 });

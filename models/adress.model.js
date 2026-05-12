@@ -27,6 +27,7 @@ const addressSchema = new mongoose.Schema(
     label: {
       type: String,
       required: true,
+      enum: ["home","work","office","others"]
     },
     landmark: {
       type: String,

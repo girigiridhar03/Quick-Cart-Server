@@ -7,6 +7,7 @@ import {
   csrfMiddleware,
   tokenVersionMiddleware,
 } from "../middlewares/auth.middleware.js";
+import upload from "../middlewares/multer.middleware.js";
 
 const userRouter = Router();
 
@@ -31,11 +32,13 @@ userRouter.post(
 );
 
 // User Routes
-userRouter.get(
-  "/me",
+userRouter.get("/me", authMiddleware, userControllers.userDetails);
+userRouter.patch(
+  "/",
+  csrfMiddleware,
   authMiddleware,
-  tokenVersionMiddleware,
-  userControllers.userDetails,
+  upload.single("profile"),
+  userControllers.updateUserDetails,
 );
 
 export default userRouter;
