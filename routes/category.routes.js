@@ -28,4 +28,37 @@ categoryRouter.post(
   categoryControllers.createSubCategory,
 );
 
+// Dynamic Routes
+categoryRouter.delete(
+  "/:id",
+  csrfMiddleware,
+  authMiddleware,
+  roleCheckMiddleware("ADMIN"),
+  categoryControllers.deleteCategory,
+);
+categoryRouter.patch(
+  "/:id",
+  csrfMiddleware,
+  authMiddleware,
+  roleCheckMiddleware("ADMIN"),
+  validate(categoryValidations.updateCategorySchema),
+  categoryControllers.updateCategory,
+);
+
+categoryRouter.delete(
+  "/subcategory/:id",
+  csrfMiddleware,
+  authMiddleware,
+  roleCheckMiddleware("ADMIN"),
+  categoryControllers.deleteSubCategory,
+);
+categoryRouter.patch(
+  "/subcategory/:id",
+  csrfMiddleware,
+  authMiddleware,
+  roleCheckMiddleware("ADMIN"),
+  validate(categoryValidations.updateSubCategorySchema),
+  categoryControllers.updateSubCategory,
+);
+
 export default categoryRouter;

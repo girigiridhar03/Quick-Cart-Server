@@ -103,7 +103,3 @@ export const createProduct = asyncHandler(async (req, res) => {
 
   return response(res, 201, "Product Created Successfully", newProduct);
 });
-
-// export const getAllProducts = asyncHandler(async(req,res)=>{
-   
-// })

@@ -36,24 +36,6 @@ const categorySchema = new mongoose.Schema(
   },
 );
 
-categorySchema.post("findOneAndDelete", async function (doc) {
-  if (!doc) return;
-  try {
-    const products = await Product.find({ category: doc._id });
-    await Promise.all(
-      products.flatMap((product) =>
-        product.productImages.map((img) =>
-          deleteFileFromCloudinary(img.publicId),
-        ),
-      ),
-    );
-    await SubCategory.deleteMany({ category: doc._id });
-    await Product.deleteMany({ category: doc._id });
-  } catch (error) {
-    logger.error("Cascade delete failed", { categoryId: doc._id, error });
-  }
-});
-
 const Category = mongoose.model("Category", categorySchema);
 
 export default Category;
