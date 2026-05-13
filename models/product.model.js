@@ -95,15 +95,14 @@ const productSchema = new mongoose.Schema(
     versionKey: false,
   },
 );
-productSchema.pre("save", function (next) {
-  if (this.isModified("discount") || this.isModified("mrp")) {
+productSchema.pre("validate", function () {
+  if (this.isNew || this.isModified("discount") || this.isModified("mrp")) {
     if (this.discount === 0) {
       this.price = this.mrp;
     } else {
       this.price = Math.round(this.mrp * (1 - this.discount / 100));
     }
   }
-  next();
 });
 const Product = mongoose.model("Product", productSchema);
 

@@ -18,7 +18,9 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   if (err.code === 11000) {
-    return response(res, 400, "Duplicate entries not allowed");
+    const field = Object.keys(err.keyValue)[0];
+
+    return response(res, 409, `${field} already exists`);
   }
 
   if (err.name === "ValidationError") {

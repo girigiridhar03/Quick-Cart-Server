@@ -20,7 +20,7 @@ import {
 } from "../utils/jwt.js";
 import {
   deleteFileFromCloudinary,
-  uplaodToCloudinary,
+  uploadToCloudinary,
 } from "../config/cloudinary.config.js";
 
 const MAX_ATTEMPTS = 5;
@@ -255,9 +255,11 @@ export const updateUserDetails = asyncHandler(async (req, res) => {
 
   const image = req.file;
   let result = null;
+  let oldPublicId = null;
   if (image) {
-    result = await uplaodToCloudinary(image.buffer, "user");
+    result = await uploadToCloudinary(image.buffer, "users");
     if (result) {
+      oldPublicId = user.profile?.publicId;
       user.profile = {
         url: result.secure_url,
         publicId: result.public_id,
@@ -266,6 +268,9 @@ export const updateUserDetails = asyncHandler(async (req, res) => {
   }
   try {
     await user.save();
+    if (oldPublicId) {
+      await deleteFileFromCloudinary(oldPublicId);
+    }
   } catch (error) {
     if (uploadedResult) {
       await deleteFileFromCloudinary(uploadedResult.public_id);

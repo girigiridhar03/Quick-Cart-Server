@@ -11,7 +11,7 @@ cloudinary.config({
   api_secret: process.env.CLOUD_API_SECRET,
 });
 
-export const uplaodToCloudinary = async (fileBuffer, folder = "products") => {
+export const uploadToCloudinary = async (fileBuffer, folder = "products") => {
   if (!fileBuffer) throw new AppError("File Buffer is required", 400);
 
   return new Promise((resolve, reject) => {
