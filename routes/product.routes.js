@@ -21,4 +21,14 @@ productRouter.post(
   productControllers.createProduct,
 );
 
+productRouter.patch(
+  "/:id",
+  csrfMiddleware,
+  authMiddleware,
+  roleCheckMiddleware("ADMIN"),
+  upload.array("images", 5),
+  validate(productValidations.updateProductSchema),
+  productControllers.updateProduct,
+);
+
 export default productRouter;

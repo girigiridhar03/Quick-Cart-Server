@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
-import { deleteFileFromCloudinary, uploadToCloudinary } from "../config/cloudinary.config.js";
+import {
+  deleteFileFromCloudinary,
+  uploadToCloudinary,
+} from "../config/cloudinary.config.js";
 import Product from "../models/product.model.js";
 import AppError from "../utils/AppError.js";
 import { asyncHandler } from "../utils/handler.js";
@@ -102,4 +105,143 @@ export const createProduct = asyncHandler(async (req, res) => {
   }
 
   return response(res, 201, "Product Created Successfully", newProduct);
+});
+
+export const updateProduct = asyncHandler(async (req, res) => {
+  if (!Object.keys(req.body).length && (!req.files || req.files.length === 0)) {
+    throw new AppError("Please provide at least one field to update", 400);
+  }
+
+  const id = req.params.id;
+  const {
+    name,
+    brand,
+    weight,
+    mrp,
+    discount,
+    category: categoryId,
+    subCategory: subCategoryId,
+    description,
+    tags,
+    stock,
+    isActive,
+  } = req.body;
+
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(`Invalid Product Id: ${id}`, 400);
+  }
+
+  const product = await Product.findById(id);
+
+  if (!product) {
+    throw new AppError("Product not found", 404);
+  }
+
+  if (name && name !== product.name) {
+    const nameSlug = slugify(name, {
+      lower: true,
+      strict: true,
+      trim: true,
+    });
+    product.name = name;
+    product.slug = nameSlug;
+  }
+
+  if (brand && brand !== product.brand) {
+    product.brand = brand;
+  }
+
+  if (weight && weight !== product.weight) {
+    product.weight = weight;
+  }
+
+  if (typeof mrp !== "undefined" && mrp !== product.mrp) {
+    product.mrp = mrp;
+  }
+
+  if (typeof discount !== "undefined" && discount !== product.discount) {
+    product.discount = discount;
+  }
+
+  if (categoryId && categoryId !== String(product.category)) {
+    if (!mongoose.isValidObjectId(categoryId)) {
+      throw new AppError(`Invalid Category Id: ${categoryId}`, 400);
+    }
+    const categoryExist = await Category.findById(categoryId);
+    if (!categoryExist) {
+      throw new AppError("Category not found", 404);
+    }
+
+    product.category = categoryId;
+  }
+
+  if (subCategoryId && subCategoryId !== String(product.subCategory)) {
+    if (!mongoose.isValidObjectId(subCategoryId)) {
+      throw new AppError(`Invalid Subcategory Id: ${subCategoryId}`, 400);
+    }
+
+    const subCategoryExist = await SubCategory.findById(subCategoryId);
+    if (!subCategoryExist) {
+      throw new AppError("SubCategory not found", 404);
+    }
+
+    product.subCategory = subCategoryId;
+  }
+
+  if (tags) {
+    product.tags = tags;
+  }
+
+  if (typeof stock !== "undefined" && stock !== product.stock) {
+    product.stock = stock;
+  }
+
+  if (description && description !== product.description) {
+    product.description = description;
+  }
+
+  if (typeof isActive !== "undefined" && isActive !== product.isActive) {
+    product.isActive = isActive;
+  }
+
+  let uploadedImages = [];
+  if (req.files && req.files.length > 0) {
+    if (product.productImages.length + req.files.length > 5) {
+      throw new AppError("Product can only have 5 images", 400);
+    }
+    try {
+      uploadedImages = await Promise.all(
+        req.files.map(async (item) => {
+          const result = await uploadToCloudinary(item.buffer);
+
+          return {
+            url: result.secure_url,
+            publicId: result.public_id,
+          };
+        }),
+      );
+
+      product.productImages.push(...uploadedImages);
+    } catch (error) {
+      if (uploadedImages.length > 0) {
+        await Promise.all(
+          uploadedImages.map((item) => deleteFileFromCloudinary(item.publicId)),
+        );
+      }
+      throw error;
+    }
+  }
+
+  try {
+    await product.save();
+  } catch (error) {
+    if (uploadedImages.length > 0) {
+      await Promise.all(
+        uploadedImages.map((item) => deleteFileFromCloudinary(item.publicId)),
+      );
+    }
+    throw error;
+  }
+
+  return response(res, 200, "Product updated successfully", product);
 });

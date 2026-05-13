@@ -31,3 +31,27 @@ export const createProductSchema = z.object({
     z.number().optional(),
   ),
 });
+
+export const updateProductSchema = z.object({
+  name: z.string().trim().min(3).optional(),
+  brand: z.string().trim().min(3).optional(),
+  weight: z.string().trim().min(1).optional(),
+  mrp: z.preprocess(
+    (val) => (val === undefined ? undefined : Number(val)),
+    z.number().min(1).optional(),
+  ),
+  category: z.string().trim().length(24).optional(),
+  subCategory: z.string().trim().length(24).optional(),
+  discount: z.preprocess(
+    (val) => (val === undefined ? undefined : Number(val)),
+    z.number().min(0).optional(),
+  ),
+  description: z.string().trim().min(3).optional(),
+
+  tags: z.array(z.string().trim().min(1)).min(1).optional(),
+  stock: z.preprocess(
+    (val) => (val === undefined ? undefined : Number(val)),
+    z.number().min(0).optional(),
+  ),
+  isActive: z.boolean().optional(),
+});
