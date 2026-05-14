@@ -21,6 +21,8 @@ productRouter.post(
   productControllers.createProduct,
 );
 
+productRouter.get("/", productControllers.getAllProducts);
+
 productRouter.patch(
   "/:id",
   csrfMiddleware,

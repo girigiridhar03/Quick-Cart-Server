@@ -245,3 +245,87 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   return response(res, 200, "Product updated successfully", product);
 });
+
+export const getAllProducts = asyncHandler(async (req, res) => {
+  const {
+    brand,
+    category,
+    subCategory,
+    minPrice,
+    maxPrice,
+    inStock,
+    search,
+    sortBy,
+    page = 1,
+    limit = 20,
+    isActive = true,
+  } = req.query;
+
+  let query = {};
+
+  if (brand) {
+    query.brand = {
+      $regex: brand,
+      $options: "i",
+    };
+  }
+
+  if (category) {
+    if (!mongoose.isValidObjectId(category)) {
+      throw new AppError(`Invalid Category Id: ${category}`, 400);
+    }
+    query.category = category;
+  }
+
+  if (subCategory) {
+    if (!mongoose.isValidObjectId(subCategory)) {
+      throw new AppError(`Invalid subCategory Id: ${subCategory}`, 400);
+    }
+    query.subCategory = subCategory;
+  }
+
+  if (minPrice || maxPrice) {
+    query.price = {};
+    if (minPrice) query.price.$gte = Number(minPrice);
+    if (maxPrice) query.price.$lte = Number(maxPrice);
+  }
+
+  if (inStock === "true") query.sock = { $gt: 0 };
+
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
+      { tags: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  const sortOptions = {
+    price_asc: { price: 1 },
+    price_desc: { price: -1 },
+    newest: { createdAt: -1 },
+    popularity: { sold: -1 },
+  };
+  const sort = sortOptions[sortBy] || { createdAt: -1 };
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const [products, total] = await Promise.all([
+    Product.find(query)
+      .populate("category", "name slug bgColor icon")
+      .populate("subCategory", "name slug")
+      .sort(sort)
+      .skip(skip)
+      .limit(limit),
+    Product.countDocuments(query),
+  ]);
+
+  return response(res, 200, "Products fetched successfully", {
+    products,
+    pagination: {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(total / Number(limit)),
+    },
+  });
+});
