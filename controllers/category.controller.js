@@ -185,7 +185,9 @@ export const updateSubCategory = asyncHandler(async (req, res) => {
 });
 
 export const getAllCategories = asyncHandler(async (req, res) => {
-  const categories = await Category.find({ isActive: true });
+  const isActive = req.query.isActive ?? true;
+
+  const categories = await Category.find({ isActive }).select("-createdAt -updatedAt");
 
   return response(res, 200, "Categories fetched successfully", categories);
 });
