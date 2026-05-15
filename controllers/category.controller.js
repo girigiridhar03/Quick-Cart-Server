@@ -13,7 +13,7 @@ export const createCategory = asyncHandler(async (req, res) => {
   const nameSlug = slugify(name, { lower: true, strict: true, trim: true });
 
   const newCategory = await Category.create({
-    name,
+    name: name.toLowerCase(),
     slug: nameSlug,
     icon,
     bgColor,
@@ -54,7 +54,7 @@ export const createSubCategory = asyncHandler(async (req, res) => {
 
   const newSubCategory = await SubCategory.create({
     category,
-    name,
+    name: name.toLowerCase(),
     slug: nameSlug,
   });
 
@@ -182,4 +182,25 @@ export const updateSubCategory = asyncHandler(async (req, res) => {
 
   await subCategory.save();
   return response(res, 200, "SubCategory updated successfully", subCategory);
+});
+
+export const getAllCategories = asyncHandler(async (req, res) => {
+  const categories = await Category.find({ isActive: true });
+
+  return response(res, 200, "Categories fetched successfully", categories);
+});
+
+export const getAllSubCategories = asyncHandler(async (req, res) => {
+  const id = req.params.id;
+
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(`Invalid SubCategory Id: ${id}`, 400);
+  }
+
+  const subCategories = await SubCategory.find({
+    isActive: true,
+    category: id,
+  }).select("name slug _id");
+
+  return response(res, 200, "Subcategories fetched", subCategories);
 });

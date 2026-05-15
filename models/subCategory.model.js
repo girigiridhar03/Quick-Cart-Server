@@ -12,10 +12,14 @@ const subCategorySchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      unique: true,
+      index: true,
     },
     slug: {
       type: String,
       required: true,
+      unique: true,
+      index: true,
     },
     isActive: {
       type: Boolean,
@@ -27,7 +31,6 @@ const subCategorySchema = new mongoose.Schema(
     versionKey: false,
   },
 );
-
 
 const SubCategory = mongoose.model("SubCategory", subCategorySchema);
 

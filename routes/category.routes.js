@@ -28,6 +28,8 @@ categoryRouter.post(
   categoryControllers.createSubCategory,
 );
 
+categoryRouter.get("/", categoryControllers.getAllCategories);
+
 // Dynamic Routes
 categoryRouter.delete(
   "/:id",
@@ -60,5 +62,6 @@ categoryRouter.patch(
   validate(categoryValidations.updateSubCategorySchema),
   categoryControllers.updateSubCategory,
 );
+categoryRouter.get("/subcategory/:id", categoryControllers.getAllSubCategories);
 
 export default categoryRouter;
