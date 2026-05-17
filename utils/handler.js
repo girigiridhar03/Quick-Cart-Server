@@ -13,6 +13,9 @@ export const errorHandler = (err, req, res, next) => {
     method: req.method,
   });
 
+  if (err.message === "Origin not allowed by CORS") {
+    return response(res, 403, err.message);
+  }
   if (err instanceof AppError) {
     return response(res, 400, err.message);
   }
