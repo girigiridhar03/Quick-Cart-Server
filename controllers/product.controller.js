@@ -329,3 +329,9 @@ export const getAllProducts = asyncHandler(async (req, res) => {
     },
   });
 });
+
+export const getAllBrands = asyncHandler(async (req, res) => {
+  const brands = await Product.find({}).select("brand");
+
+  return response(res, 200, "Brands fetched successfully", brands);
+});

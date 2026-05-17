@@ -22,6 +22,7 @@ productRouter.post(
 );
 
 productRouter.get("/", productControllers.getAllProducts);
+productRouter.get("/brands", productControllers.getAllBrands);
 
 productRouter.patch(
   "/:id",
