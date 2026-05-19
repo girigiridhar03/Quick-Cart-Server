@@ -87,6 +87,10 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    sold: {
+      type: Number,
+      default: 0,
+    },
     reportCount: { type: Number, default: 0 },
     isFlagged: { type: Boolean, default: false },
   },
@@ -103,7 +107,12 @@ productSchema.pre("validate", function () {
       this.price = Math.round(this.mrp * (1 - this.discount / 100));
     }
   }
+
+  if (this.isModified("reportCount")) {
+    this.isFlagged = this.reportCount >= 3;
+  }
 });
+
 const Product = mongoose.model("Product", productSchema);
 
 export default Product;

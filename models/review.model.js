@@ -30,11 +30,11 @@ const reviewSchema = new mongoose.Schema(
       {
         url: {
           type: String,
-          required: true,
+          default: null,
         },
         publicId: {
           type: String,
-          required: true,
+          default: null,
         },
       },
     ],
@@ -52,7 +52,7 @@ const reviewSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    isFlaggged: {
+    isFlagged: {
       type: Boolean,
       default: false,
     },
@@ -63,11 +63,10 @@ const reviewSchema = new mongoose.Schema(
   },
 );
 
-reviewSchema.pre("save", function (next) {
-  if (this.flagCount >= 5) {
+reviewSchema.pre("validate", function () {
+  if (this.isModified("flagCount") && this.flagCount >= 5) {
     this.isFlagged = true;
   }
-  next();
 });
 
 const Review = mongoose.model("Review", reviewSchema);

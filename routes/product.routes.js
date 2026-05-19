@@ -24,6 +24,7 @@ productRouter.post(
 productRouter.get("/", productControllers.getAllProducts);
 productRouter.get("/brands", productControllers.getAllBrands);
 
+productRouter.get("/:slug", productControllers.getSingleProduct);
 productRouter.patch(
   "/:id",
   csrfMiddleware,
@@ -32,6 +33,13 @@ productRouter.patch(
   upload.array("images", 5),
   validate(productValidations.updateProductSchema),
   productControllers.updateProduct,
+);
+productRouter.delete(
+  "/:productId/image/:imageId",
+  csrfMiddleware,
+  authMiddleware,
+  roleCheckMiddleware("ADMIN"),
+  productControllers.deleteImages,
 );
 
 export default productRouter;

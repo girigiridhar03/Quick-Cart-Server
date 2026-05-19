@@ -10,6 +10,7 @@ import slugify from "slugify";
 import Category from "../models/category.model.js";
 import SubCategory from "../models/subCategory.model.js";
 import response from "../utils/response.js";
+import Review from "../models/review.model.js";
 
 export const createProduct = asyncHandler(async (req, res) => {
   const {
@@ -335,3 +336,182 @@ export const getAllBrands = asyncHandler(async (req, res) => {
 
   return response(res, 200, "Brands fetched successfully", brands);
 });
+
+export const deleteImages = asyncHandler(async (req, res) => {
+  const { productId, imageId } = req.params;
+
+  if (!mongoose.isValidObjectId(productId)) {
+    throw new AppError(`Invalid Product Id: ${productId}`, 400);
+  }
+
+  if (!imageId) {
+    throw new AppError("Image ID is required", 400);
+  }
+
+  if (!mongoose.isValidObjectId(imageId)) {
+    throw new AppError(`Invalid Product Image Id: ${imageId}`);
+  }
+
+  const product = await Product.findOneAndUpdate(
+    {
+      _id: productId,
+      "productImages._id": imageId,
+    },
+    {
+      $pull: {
+        productImages: {
+          _id: imageId,
+        },
+      },
+    },
+    { new: false },
+  );
+
+  if (!product) {
+    throw new AppError("Product/Image not found", 404);
+  }
+
+  const deletedImage = product.productImages.find(
+    (img) => String(img._id) === imageId,
+  );
+
+  try {
+    await deleteFileFromCloudinary(deletedImage.publicId);
+  } catch (error) {
+    console.error("Cloudinary delete failed:", error);
+
+    try {
+      await Product.updateOne(
+        { _id: productId },
+        {
+          $push: {
+            productImages: deletedImage,
+          },
+        },
+      );
+    } catch (rollbackError) {
+      console.error("Rollback failed:", rollbackError);
+    }
+
+    throw new AppError("Failed to delete image from cloud storage", 500);
+  }
+
+  return response(res, 200, "Image deleted Successfully");
+});
+
+export const getSingleProduct = asyncHandler(async (req, res) => {
+  const { slug } = req.params;
+
+  const product = await Product.findOne({ slug })
+    .populate("category", "name slug  bgColor icon")
+    .populate("subCategory", "name slug")
+    .select("-updatedAt")
+    .lean();
+
+  if (!product) {
+    throw new AppError("Product not found", 404);
+  }
+
+  return response(res, 200, "Single product fetched successfully", product);
+});
+
+
+// export const getProductReviews 
+
+
+
+  // const reviews = await Review.aggregate([
+  //   {
+  //     $match: {
+  //       product: product._id,
+  //     },
+  //   },
+  //   {
+  //     $group: {
+  //       _id: "$rating",
+  //       count: {
+  //         $sum: 1,
+  //       },
+  //     },
+  //   },
+  //   {
+  //     $group: {
+  //       _id: null,
+  //       totalReviews: {
+  //         $sum: "$count",
+  //       },
+  //       ratings: {
+  //         $push: {
+  //           rating: "$_id",
+  //           count: "$count",
+  //         },
+  //       },
+  //     },
+  //   },
+  //   {
+  //     $project: {
+  //       _id: 0,
+  //       totalReviews: 1,
+  //       ratings: {
+  //         $map: {
+  //           input: "$ratings",
+  //           as: "rating",
+  //           in: {
+  //             rating: "$$rating.rating",
+  //             count: "$$rating.count",
+
+  //             percentage: {
+  //               $multiply: [
+  //                 {
+  //                   $divide: ["$$rating.count", "$totalReviews"],
+  //                 },
+  //                 100,
+  //               ],
+  //             },
+  //           },
+  //         },
+  //       },
+  //     },
+  //   },
+  // ]);
+
+  // const defaultRatings = [
+  //   {
+  //     rating: 5,
+  //     count: 0,
+  //     percentage: 0,
+  //   },
+  //   {
+  //     rating: 4,
+  //     count: 0,
+  //     percentage: 0,
+  //   },
+  //   {
+  //     rating: 3,
+  //     count: 0,
+  //     percentage: 0,
+  //   },
+  //   {
+  //     rating: 2,
+  //     count: 0,
+  //     percentage: 0,
+  //   },
+  //   {
+  //     rating: 1,
+  //     count: 0,
+  //     percentage: 0,
+  //   },
+  // ];
+
+  // const reviewStats = reviews[0] || {
+  //   totalReviews: 0,
+  //   ratings: [],
+  // };
+
+  // const mergedRatings = defaultRatings.map((defaultRating) => {
+  //   const foundRating = reviewStats.ratings.find(
+  //     (rating) => rating.rating === defaultRating.rating,
+  //   );
+
+  //   return foundRating || defaultRating;
+  // });
