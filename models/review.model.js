@@ -38,7 +38,7 @@ const reviewSchema = new mongoose.Schema(
         },
       },
     ],
-    adminReplay: {
+    adminReply: {
       reply: String,
       repliedAt: Date,
     },
@@ -62,6 +62,9 @@ const reviewSchema = new mongoose.Schema(
     versionKey: false,
   },
 );
+
+reviewSchema.index({ user: 1, product: 1 }, { unique: true });
+reviewSchema.index({product: 1, createdAt : -11})
 
 reviewSchema.pre("validate", function () {
   if (this.isModified("flagCount") && this.flagCount >= 5) {

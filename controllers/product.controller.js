@@ -259,7 +259,7 @@ export const getAllProducts = asyncHandler(async (req, res) => {
     sortBy,
     page = 1,
     limit = 20,
-    isActive = true,
+    isActive,
   } = req.query;
 
   let query = {};
@@ -269,6 +269,10 @@ export const getAllProducts = asyncHandler(async (req, res) => {
       $regex: brand,
       $options: "i",
     };
+  }
+
+  if (isActive !== undefined && ["true", "false"].includes(isActive)) {
+    query.isActive = isActive === "true";
   }
 
   if (category) {
@@ -415,103 +419,100 @@ export const getSingleProduct = asyncHandler(async (req, res) => {
   return response(res, 200, "Single product fetched successfully", product);
 });
 
+// export const getProductReviews
 
-// export const getProductReviews 
+// const reviews = await Review.aggregate([
+//   {
+//     $match: {
+//       product: product._id,
+//     },
+//   },
+//   {
+//     $group: {
+//       _id: "$rating",
+//       count: {
+//         $sum: 1,
+//       },
+//     },
+//   },
+//   {
+//     $group: {
+//       _id: null,
+//       totalReviews: {
+//         $sum: "$count",
+//       },
+//       ratings: {
+//         $push: {
+//           rating: "$_id",
+//           count: "$count",
+//         },
+//       },
+//     },
+//   },
+//   {
+//     $project: {
+//       _id: 0,
+//       totalReviews: 1,
+//       ratings: {
+//         $map: {
+//           input: "$ratings",
+//           as: "rating",
+//           in: {
+//             rating: "$$rating.rating",
+//             count: "$$rating.count",
 
+//             percentage: {
+//               $multiply: [
+//                 {
+//                   $divide: ["$$rating.count", "$totalReviews"],
+//                 },
+//                 100,
+//               ],
+//             },
+//           },
+//         },
+//       },
+//     },
+//   },
+// ]);
 
+// const defaultRatings = [
+//   {
+//     rating: 5,
+//     count: 0,
+//     percentage: 0,
+//   },
+//   {
+//     rating: 4,
+//     count: 0,
+//     percentage: 0,
+//   },
+//   {
+//     rating: 3,
+//     count: 0,
+//     percentage: 0,
+//   },
+//   {
+//     rating: 2,
+//     count: 0,
+//     percentage: 0,
+//   },
+//   {
+//     rating: 1,
+//     count: 0,
+//     percentage: 0,
+//   },
+// ];
 
-  // const reviews = await Review.aggregate([
-  //   {
-  //     $match: {
-  //       product: product._id,
-  //     },
-  //   },
-  //   {
-  //     $group: {
-  //       _id: "$rating",
-  //       count: {
-  //         $sum: 1,
-  //       },
-  //     },
-  //   },
-  //   {
-  //     $group: {
-  //       _id: null,
-  //       totalReviews: {
-  //         $sum: "$count",
-  //       },
-  //       ratings: {
-  //         $push: {
-  //           rating: "$_id",
-  //           count: "$count",
-  //         },
-  //       },
-  //     },
-  //   },
-  //   {
-  //     $project: {
-  //       _id: 0,
-  //       totalReviews: 1,
-  //       ratings: {
-  //         $map: {
-  //           input: "$ratings",
-  //           as: "rating",
-  //           in: {
-  //             rating: "$$rating.rating",
-  //             count: "$$rating.count",
+// const reviewStats = reviews[0] || {
+//   totalReviews: 0,
+//   ratings: [],
+// };
 
-  //             percentage: {
-  //               $multiply: [
-  //                 {
-  //                   $divide: ["$$rating.count", "$totalReviews"],
-  //                 },
-  //                 100,
-  //               ],
-  //             },
-  //           },
-  //         },
-  //       },
-  //     },
-  //   },
-  // ]);
+// const mergedRatings = defaultRatings.map((defaultRating) => {
+//   const foundRating = reviewStats.ratings.find(
+//     (rating) => rating.rating === defaultRating.rating,
+//   );
 
-  // const defaultRatings = [
-  //   {
-  //     rating: 5,
-  //     count: 0,
-  //     percentage: 0,
-  //   },
-  //   {
-  //     rating: 4,
-  //     count: 0,
-  //     percentage: 0,
-  //   },
-  //   {
-  //     rating: 3,
-  //     count: 0,
-  //     percentage: 0,
-  //   },
-  //   {
-  //     rating: 2,
-  //     count: 0,
-  //     percentage: 0,
-  //   },
-  //   {
-  //     rating: 1,
-  //     count: 0,
-  //     percentage: 0,
-  //   },
-  // ];
-
-  // const reviewStats = reviews[0] || {
-  //   totalReviews: 0,
-  //   ratings: [],
-  // };
-
-  // const mergedRatings = defaultRatings.map((defaultRating) => {
-  //   const foundRating = reviewStats.ratings.find(
-  //     (rating) => rating.rating === defaultRating.rating,
-  //   );
-
-  //   return foundRating || defaultRating;
-  // });
+//   return foundRating || defaultRating;
+// });
