@@ -16,21 +16,25 @@ export const addAddressSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
-export const updateAddressSchema = z.object({
-  street: z.string().trim().min(3).optional(),
-  state: z.string().trim().min(3).optional(),
-  pincode: z
-    .string()
-    .trim()
-    .length(6, {
-      message: "PIN code must be exactly 6 digits",
-    })
-    .regex(/^[1-9][0-9]{5}$/, {
-      message: "PIN code must be exactly 6 digits and cannot start with 0",
-    })
-    .optional(),
-  city: z.string().trim().min(3).optional(),
-  label: z.string().trim().min(3).optional(),
-  landmark: z.string().trim().min(3).optional(),
-  isDefault: z.boolean().optional(),
-});
+export const updateAddressSchema = z
+  .object({
+    street: z.string().trim().min(3).optional(),
+    state: z.string().trim().min(3).optional(),
+    pincode: z
+      .string()
+      .trim()
+      .length(6, {
+        message: "PIN code must be exactly 6 digits",
+      })
+      .regex(/^[1-9][0-9]{5}$/, {
+        message: "PIN code must be exactly 6 digits and cannot start with 0",
+      })
+      .optional(),
+    city: z.string().trim().min(3).optional(),
+    label: z.string().trim().min(3).optional(),
+    landmark: z.string().trim().min(3).optional(),
+    isDefault: z.boolean().optional(),
+  })
+  .refine((data) => Object.values(data).some((val) => val !== undefined), {
+    message: "At least one field must be provided",
+  });

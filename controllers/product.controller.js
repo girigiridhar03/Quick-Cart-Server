@@ -10,7 +10,6 @@ import slugify from "slugify";
 import Category from "../models/category.model.js";
 import SubCategory from "../models/subCategory.model.js";
 import response from "../utils/response.js";
-import Review from "../models/review.model.js";
 
 export const createProduct = asyncHandler(async (req, res) => {
   const {

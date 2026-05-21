@@ -64,7 +64,7 @@ const reviewSchema = new mongoose.Schema(
 );
 
 reviewSchema.index({ user: 1, product: 1 }, { unique: true });
-reviewSchema.index({product: 1, createdAt : -11})
+reviewSchema.index({product: 1, createdAt : -1})
 
 reviewSchema.pre("validate", function () {
   if (this.isModified("flagCount") && this.flagCount >= 5) {

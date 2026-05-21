@@ -45,4 +45,7 @@ export const updateUser = z.object({
     .trim()
     .regex(/^[0-9]{10}$/, "Invalid mobile number")
     .optional(),
-});
+}).refine(
+  (data) => Object.values(data).some((val) => val !== undefined),
+  { message: "At least one field must be provided" }
+);
