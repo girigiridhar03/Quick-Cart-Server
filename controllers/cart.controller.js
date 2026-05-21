@@ -110,3 +110,31 @@ export const getAllCarts = asyncHandler(async (req, res) => {
     cartTotal,
   });
 });
+
+export const deleteCartItem = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(`Invalid Cart Item Id: ${id}`, 400);
+  }
+
+  const cartItem = await Cart.findByIdAndDelete(id);
+
+  if (!cartItem) {
+    throw new AppError("Cart Item not found", 404);
+  }
+
+  return response(res, 200, "Cart item deleted successfully");
+});
+
+export const clearCart = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  const result = await Cart.deleteMany({ user: userId });
+
+  if (result.deletedCount === 0) {
+    return response(res, 200, "Cart is already empty", []);
+  }
+
+  return response(res, 200, "Cart cleared successfully", []);
+});

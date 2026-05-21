@@ -9,11 +9,25 @@ const cartRouter = Router();
 
 cartRouter.get("/", authMiddleware, cartController.getAllCarts);
 
+cartRouter.delete(
+  "/",
+  csrfMiddleware,
+  authMiddleware,
+  cartController.clearCart,
+);
+
 cartRouter.post(
   "/:productId",
   csrfMiddleware,
   authMiddleware,
   cartController.addToCart,
+);
+
+cartRouter.delete(
+  "/:id",
+  csrfMiddleware,
+  authMiddleware,
+  cartController.deleteCartItem,
 );
 
 export default cartRouter;
