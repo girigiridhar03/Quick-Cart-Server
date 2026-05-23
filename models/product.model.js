@@ -104,7 +104,7 @@ productSchema.pre("validate", function () {
     if (this.discount === 0) {
       this.price = this.mrp;
     } else {
-      this.price = Math.round(this.mrp * (1 - this.discount / 100));
+      this.price = Math.floor(this.mrp * (1 - this.discount / 100));
     }
   }
 
