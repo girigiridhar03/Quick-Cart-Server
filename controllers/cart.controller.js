@@ -83,6 +83,37 @@ export const addToCart = asyncHandler(async (req, res) => {
   return response(res, 200, "Product added to cart successfully", cart);
 });
 
+export const descreaseItemQuantity = asyncHandler(async (req, res) => {
+  const { itemId } = req.params;
+  const userId = req.user.id;
+
+  if (!mongoose.isValidObjectId(itemId)) {
+    throw new AppError(`Invalid ItemId: ${itemId}`, 400);
+  }
+
+  const item = await Cart.findOneAndUpdate(
+    {
+      _id: itemId,
+      user: userId,
+      quantity: { $gt: 0 },
+    },
+    {
+      $inc: {
+        quantity: -1,
+      },
+    },
+    {
+      returnDocument: "after",
+    },
+  );
+
+  if (!item) {
+    throw new AppError("Item not found", 404);
+  }
+
+  return response(res, 200, `Quantity decreased to: ${item.quantity}`);
+});
+
 export const getAllCarts = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
@@ -101,13 +132,22 @@ export const getAllCarts = asyncHandler(async (req, res) => {
       availability: stockMessage(item.product.stock, item.quantity),
     }));
 
-  const cartTotal = updatedProducts.reduce((acc, curr) => {
-    return acc + curr.product.price * curr.quantity;
-  }, 0);
+  const { cartTotal, totalDiscount, totalMrp } = updatedProducts.reduce(
+    (acc, curr) => {
+      return {
+        cartTotal: acc.cartTotal + curr.product.price * curr.quantity,
+        totalDiscount: acc.totalDiscount + curr.product.discount,
+        totalMrp: acc.totalMrp + curr.product.mrp,
+      };
+    },
+    { cartTotal: 0, totalDiscount: 0, totalMrp: 0 },
+  );
 
   return response(res, 200, "Fetched cart details", {
     products: updatedProducts,
     cartTotal,
+    totalDiscount,
+    totalMrp,
   });
 });
 

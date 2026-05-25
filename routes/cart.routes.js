@@ -16,6 +16,13 @@ cartRouter.delete(
   cartController.clearCart,
 );
 
+cartRouter.patch(
+  "/descrease/:itemId",
+  csrfMiddleware,
+  authMiddleware,
+  cartController.descreaseItemQuantity,
+);
+
 cartRouter.post(
   "/:productId",
   csrfMiddleware,
