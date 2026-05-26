@@ -21,7 +21,7 @@ export const authMiddleware = (req, res, next) => {
   try {
     const accessCookie = req.cookies?.[ACCESS_TOKEN];
     if (!accessCookie) {
-      return response(res, 400, "Access Token is required");
+      return response(res, 401, "Access Token is required");
     }
     const decodedToken = jwt.verify(accessCookie, process.env.ACCESS_SECRET);
     req.user = decodedToken;
