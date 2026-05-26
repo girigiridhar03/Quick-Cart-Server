@@ -261,6 +261,8 @@ export const getAllProducts = asyncHandler(async (req, res) => {
     isActive,
   } = req.query;
 
+  const userId = req.user ? req.user.id : null;
+
   let query = {};
 
   if (brand) {
@@ -270,9 +272,10 @@ export const getAllProducts = asyncHandler(async (req, res) => {
     };
   }
 
-  if (isActive !== undefined && ["true", "false"].includes(isActive)) {
-    query.isActive = isActive === "true";
-  }
+  query.isActive =
+    isActive !== undefined && ["true", "false"].includes(isActive)
+      ? isActive === "true"
+      : true;
 
   if (category) {
     if (!mongoose.isValidObjectId(category)) {
@@ -294,7 +297,7 @@ export const getAllProducts = asyncHandler(async (req, res) => {
     if (maxPrice) query.price.$lte = Number(maxPrice);
   }
 
-  if (inStock === "true") query.sock = { $gt: 0 };
+  if (inStock === "true") query.stock = { $gt: 0 };
 
   if (search) {
     query.$or = [
@@ -313,25 +316,111 @@ export const getAllProducts = asyncHandler(async (req, res) => {
   const sort = sortOptions[sortBy] || { createdAt: -1 };
 
   const skip = (Number(page) - 1) * Number(limit);
-  const [products, total] = await Promise.all([
-    Product.find(query)
-      .populate("category", "name slug bgColor icon")
-      .populate("subCategory", "name slug")
-      .sort(sort)
-      .skip(skip)
-      .limit(limit),
-    Product.countDocuments(query),
-  ]);
 
-  return response(res, 200, "Products fetched successfully", {
-    products,
-    pagination: {
-      total,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: Math.ceil(total / Number(limit)),
-    },
-  });
+  if (!userId) {
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .populate("category", "name slug bgColor icon")
+        .populate("subCategory", "name slug")
+        .sort(sort)
+        .skip(skip)
+        .limit(Number(limit)),
+      Product.countDocuments(query),
+    ]);
+
+    return response(res, 200, "Products fetched successfully", {
+      products,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } else {
+    const pipeline = [
+      {
+        $match: query,
+      },
+      {
+        $sort: sort,
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: Number(limit),
+      },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "category",
+          pipeline: [{ $project: { name: 1, slug: 1, bgColor: 1, icon: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: "subcategories",
+          localField: "subCategory",
+          foreignField: "_id",
+          as: "subCategory",
+          pipeline: [{ $project: { name: 1, slug: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: "carts",
+          let: { productId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $eq: ["$product", "$$productId"],
+                    },
+                    {
+                      $eq: ["$user", new mongoose.Types.ObjectId(userId)],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          as: "cartData",
+        },
+      },
+      {
+        $addFields: {
+          cartQuantity: {
+            $ifNull: [{ $arrayElemAt: ["$cartData.quantity", 0] }, 0],
+          },
+          category: { $arrayElemAt: ["$category", 0] },
+          subCategory: { $arrayElemAt: ["$subCategory", 0] },
+        },
+      },
+      {
+        $project: {
+          cartData: 0,
+        },
+      },
+    ];
+    const [products, total] = await Promise.all([
+      Product.aggregate(pipeline),
+      Product.countDocuments(query),
+    ]);
+    return response(res, 200, "Products fetched successfully", {
+      products,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit)),
+      },
+    });
+  }
 });
 
 export const getAllBrands = asyncHandler(async (req, res) => {
@@ -417,101 +506,3 @@ export const getSingleProduct = asyncHandler(async (req, res) => {
 
   return response(res, 200, "Single product fetched successfully", product);
 });
-
-// export const getProductReviews
-
-// const reviews = await Review.aggregate([
-//   {
-//     $match: {
-//       product: product._id,
-//     },
-//   },
-//   {
-//     $group: {
-//       _id: "$rating",
-//       count: {
-//         $sum: 1,
-//       },
-//     },
-//   },
-//   {
-//     $group: {
-//       _id: null,
-//       totalReviews: {
-//         $sum: "$count",
-//       },
-//       ratings: {
-//         $push: {
-//           rating: "$_id",
-//           count: "$count",
-//         },
-//       },
-//     },
-//   },
-//   {
-//     $project: {
-//       _id: 0,
-//       totalReviews: 1,
-//       ratings: {
-//         $map: {
-//           input: "$ratings",
-//           as: "rating",
-//           in: {
-//             rating: "$$rating.rating",
-//             count: "$$rating.count",
-
-//             percentage: {
-//               $multiply: [
-//                 {
-//                   $divide: ["$$rating.count", "$totalReviews"],
-//                 },
-//                 100,
-//               ],
-//             },
-//           },
-//         },
-//       },
-//     },
-//   },
-// ]);
-
-// const defaultRatings = [
-//   {
-//     rating: 5,
-//     count: 0,
-//     percentage: 0,
-//   },
-//   {
-//     rating: 4,
-//     count: 0,
-//     percentage: 0,
-//   },
-//   {
-//     rating: 3,
-//     count: 0,
-//     percentage: 0,
-//   },
-//   {
-//     rating: 2,
-//     count: 0,
-//     percentage: 0,
-//   },
-//   {
-//     rating: 1,
-//     count: 0,
-//     percentage: 0,
-//   },
-// ];
-
-// const reviewStats = reviews[0] || {
-//   totalReviews: 0,
-//   ratings: [],
-// };
-
-// const mergedRatings = defaultRatings.map((defaultRating) => {
-//   const foundRating = reviewStats.ratings.find(
-//     (rating) => rating.rating === defaultRating.rating,
-//   );
-
-//   return foundRating || defaultRating;
-// });

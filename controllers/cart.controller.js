@@ -136,8 +136,8 @@ export const getAllCarts = asyncHandler(async (req, res) => {
     (acc, curr) => {
       return {
         cartTotal: acc.cartTotal + curr.product.price * curr.quantity,
-        totalDiscount: acc.totalDiscount + curr.product.discount,
-        totalMrp: acc.totalMrp + curr.product.mrp,
+        totalDiscount: acc.totalDiscount + curr.product.discount * curr.quantity,
+        totalMrp: acc.totalMrp + curr.product.mrp * curr.quantity,
       };
     },
     { cartTotal: 0, totalDiscount: 0, totalMrp: 0 },

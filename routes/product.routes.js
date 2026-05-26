@@ -3,6 +3,7 @@ import {
   authMiddleware,
   csrfMiddleware,
   roleCheckMiddleware,
+  userExist,
 } from "../middlewares/auth.middleware.js";
 import * as productControllers from "../controllers/product.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
@@ -21,7 +22,7 @@ productRouter.post(
   productControllers.createProduct,
 );
 
-productRouter.get("/", productControllers.getAllProducts);
+productRouter.get("/", userExist, productControllers.getAllProducts);
 productRouter.get("/brands", productControllers.getAllBrands);
 
 productRouter.get("/:slug", productControllers.getSingleProduct);
