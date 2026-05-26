@@ -84,16 +84,16 @@ export const addToCart = asyncHandler(async (req, res) => {
 });
 
 export const descreaseItemQuantity = asyncHandler(async (req, res) => {
-  const { itemId } = req.params;
+  const { id } = req.params;
   const userId = req.user.id;
 
-  if (!mongoose.isValidObjectId(itemId)) {
-    throw new AppError(`Invalid ItemId: ${itemId}`, 400);
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(`Invalid ProductId: ${id}`, 400);
   }
 
   const item = await Cart.findOneAndUpdate(
     {
-      _id: itemId,
+      product: id,
       user: userId,
       quantity: { $gt: 0 },
     },
@@ -136,7 +136,8 @@ export const getAllCarts = asyncHandler(async (req, res) => {
     (acc, curr) => {
       return {
         cartTotal: acc.cartTotal + curr.product.price * curr.quantity,
-        totalDiscount: acc.totalDiscount + curr.product.discount * curr.quantity,
+        totalDiscount:
+          acc.totalDiscount + curr.product.discount * curr.quantity,
         totalMrp: acc.totalMrp + curr.product.mrp * curr.quantity,
       };
     },
@@ -155,10 +156,10 @@ export const deleteCartItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(`Invalid Cart Item Id: ${id}`, 400);
+    throw new AppError(`Invalid Product Id: ${id}`, 400);
   }
 
-  const cartItem = await Cart.findByIdAndDelete(id);
+  const cartItem = await Cart.findOneAndDelete({ product: id });
 
   if (!cartItem) {
     throw new AppError("Cart Item not found", 404);

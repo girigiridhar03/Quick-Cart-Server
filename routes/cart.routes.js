@@ -17,21 +17,21 @@ cartRouter.delete(
 );
 
 cartRouter.patch(
-  "/descrease/:itemId",
+  "/product/:id/descrease",
   csrfMiddleware,
   authMiddleware,
   cartController.descreaseItemQuantity,
 );
 
 cartRouter.post(
-  "/:productId",
+  "/product/:productId/add",
   csrfMiddleware,
   authMiddleware,
   cartController.addToCart,
 );
 
 cartRouter.delete(
-  "/:id",
+  "/product/:id",
   csrfMiddleware,
   authMiddleware,
   cartController.deleteCartItem,
