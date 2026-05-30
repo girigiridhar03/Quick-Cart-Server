@@ -281,14 +281,14 @@ export const getAllProducts = asyncHandler(async (req, res) => {
     if (!mongoose.isValidObjectId(category)) {
       throw new AppError(`Invalid Category Id: ${category}`, 400);
     }
-    query.category = category;
+    query.category = new mongoose.Types.ObjectId(category);
   }
 
   if (subCategory) {
     if (!mongoose.isValidObjectId(subCategory)) {
       throw new AppError(`Invalid subCategory Id: ${subCategory}`, 400);
     }
-    query.subCategory = subCategory;
+    query.subCategory = new mongoose.Types.ObjectId(subCategory);
   }
 
   if (minPrice || maxPrice) {
@@ -424,7 +424,26 @@ export const getAllProducts = asyncHandler(async (req, res) => {
 });
 
 export const getAllBrands = asyncHandler(async (req, res) => {
-  const brands = await Product.find({}).select("brand");
+  const { category, subCategory } = req.query;
+
+  let query = {};
+
+  if (category !== undefined) {
+    if (!mongoose.isValidObjectId(category)) {
+      throw new AppError(`Invalid Category ID: ${category}`, 400);
+    }
+
+    query.category = category;
+  }
+
+  if (subCategory !== undefined) {
+    if (!mongoose.isValidObjectId(subCategory)) {
+      throw new AppError(`Invalid subCategory ID: ${subCategory}`, 400);
+    }
+    query.subCategory = subCategory;
+  }
+
+  const brands = await Product.distinct("brand", query);
 
   return response(res, 200, "Brands fetched successfully", brands);
 });

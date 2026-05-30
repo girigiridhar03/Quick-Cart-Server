@@ -47,6 +47,7 @@ categoryRouter.patch(
   categoryControllers.updateCategory,
 );
 
+categoryRouter.get("/subcategory/:id", categoryControllers.getAllSubCategories);
 categoryRouter.delete(
   "/subcategory/:id",
   csrfMiddleware,
@@ -62,6 +63,5 @@ categoryRouter.patch(
   validate(categoryValidations.updateSubCategorySchema),
   categoryControllers.updateSubCategory,
 );
-categoryRouter.get("/subcategory/:id", categoryControllers.getAllSubCategories);
 
 export default categoryRouter;
