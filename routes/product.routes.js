@@ -35,6 +35,11 @@ productRouter.patch(
   validate(productValidations.updateProductSchema),
   productControllers.updateProduct,
 );
+productRouter.get(
+  "/:productId/related",
+  userExist,
+  productControllers.getRelatedProducts,
+);
 productRouter.delete(
   "/:productId/image/:imageId",
   csrfMiddleware,

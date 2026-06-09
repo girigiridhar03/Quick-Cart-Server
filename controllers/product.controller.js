@@ -525,3 +525,135 @@ export const getSingleProduct = asyncHandler(async (req, res) => {
 
   return response(res, 200, "Single product fetched successfully", product);
 });
+
+export const getRelatedProducts = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  const userId = req?.user?.id ?? null;
+
+  if (!mongoose.isValidObjectId(productId)) {
+    throw new AppError(`Invalid Product ID: ${productId}`, 400);
+  }
+
+  const product = await Product.findById(productId).select(
+    "category subCategory tags",
+  );
+
+  if (!product) {
+    throw new AppError("Product Not found", 404);
+  }
+
+  const pipeline = [
+    {
+      $match: {
+        $or: [
+          {
+            category: product.category,
+          },
+          {
+            subCategory: product.subCategory,
+          },
+          {
+            tags: {
+              $in: product.tags,
+            },
+          },
+        ],
+        _id: {
+          $ne: product._id,
+        },
+      },
+    },
+    {
+      $addFields: {
+        matchScore: {
+          $size: {
+            $ifNull: [{ $setIntersection: ["$tags", product.tags] }, []],
+          },
+        },
+      },
+    },
+    {
+      $sort: {
+        matchScore: -1,
+      },
+    },
+    {
+      $limit: 5,
+    },
+    {
+      $lookup: {
+        from: "categories",
+        localField: "category",
+        foreignField: "_id",
+        as: "category",
+        pipeline: [{ $project: { name: 1, slug: 1, bgColor: 1, icon: 1 } }],
+      },
+    },
+    {
+      $lookup: {
+        from: "subcategories",
+        localField: "subCategory",
+        foreignField: "_id",
+        as: "subCategory",
+        pipeline: [{ $project: { name: 1, slug: 1 } }],
+      },
+    },
+  ];
+
+  if (userId) {
+    pipeline.push(
+      {
+        $lookup: {
+          from: "carts",
+          let: { productId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $eq: ["$product", "$$productId"],
+                    },
+                    {
+                      $eq: ["$user", new mongoose.Types.ObjectId(userId)],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          as: "cartData",
+        },
+      },
+      {
+        $addFields: {
+          cartQuantity: {
+            $ifNull: [{ $arrayElemAt: ["$cartData.quantity", 0] }, 0],
+          },
+          category: {
+            $arrayElemAt: ["$category", 0],
+          },
+          subCategory: {
+            $arrayElemAt: ["$subCategory", 0],
+          },
+        },
+      },
+    );
+  } else {
+    pipeline.push({
+      $addFields: {
+        category: {
+          $arrayElemAt: ["$category", 0],
+        },
+        subCategory: {
+          $arrayElemAt: ["$subCategory", 0],
+        },
+      },
+    });
+  }
+
+  pipeline.push({ $project: { cartData: 0, matchScore: 0 } });
+  const relatedProducts = await Product.aggregate(pipeline);
+
+  return response(res, 200, "Fetched related products", relatedProducts);
+});
