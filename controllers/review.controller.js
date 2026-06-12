@@ -456,3 +456,60 @@ export const editReview = asyncHandler(async (req, res) => {
 
   throw new AppError("Unauthorized", 403);
 });
+
+export const reviewSummary = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  if (!mongoose.isValidObjectId(productId)) {
+    throw new AppError(`Invalid Product ID: ${productId}`);
+  }
+
+  const summary = await Review.aggregate([
+    {
+      $match: {
+        product: new mongoose.Types.ObjectId(productId),
+      },
+    },
+    {
+      $group: {
+        _id: "$rating",
+        count: {
+          $sum: 1,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalReviews: {
+          $sum: "$count",
+        },
+        ratings: {
+          $push: {
+            rating: "$_id",
+            count: "$count",
+          },
+        },
+      },
+    },
+    {
+      $unwind: "$ratings",
+    },
+    {
+      $project: {
+        _id: 0,
+        rating: "$ratings.rating",
+        count: "$ratings.count",
+        percentage: {
+          $multiply: [
+            {
+              $divide: ["$ratings.count", "$totalReviews"],
+            },
+            100,
+          ],
+        },
+      },
+    },
+  ]);
+
+  return response(res, 200, "review summary fetched successfully", summary);
+});

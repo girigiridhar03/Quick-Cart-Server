@@ -9,21 +9,6 @@ import * as reviewValidations from "../validations/review.validations.js";
 import upload from "../middlewares/multer.middleware.js";
 const reviewRouter = Router();
 
-reviewRouter.post(
-  "/product/:productId",
-  csrfMiddleware,
-  authMiddleware,
-  upload.array("images", 5),
-  validate(reviewValidations.addReviewSchema),
-  reviewControllers.addReview,
-);
-
-reviewRouter.get(
-  "/product/:productId",
-  authMiddleware,
-  reviewControllers.getAllReviews,
-);
-
 reviewRouter.delete(
   "/:reviewId",
   csrfMiddleware,
@@ -38,6 +23,21 @@ reviewRouter.patch(
   upload.array("images", 5),
   validate(reviewValidations.editReviewSchema),
   reviewControllers.editReview,
+);
+
+reviewRouter.post(
+  "/product/:productId",
+  csrfMiddleware,
+  authMiddleware,
+  upload.array("images", 5),
+  validate(reviewValidations.addReviewSchema),
+  reviewControllers.addReview,
+);
+
+reviewRouter.get("/product/:productId", reviewControllers.getAllReviews);
+reviewRouter.get(
+  "/product/:productId/reviewsummary",
+  reviewControllers.reviewSummary,
 );
 
 export default reviewRouter;
