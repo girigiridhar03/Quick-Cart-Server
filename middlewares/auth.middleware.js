@@ -11,7 +11,7 @@ export const csrfMiddleware = (req, res, next) => {
   const csrfHeader = req.headers["x-csrf-token"];
 
   if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
-    return response(res, 400, "Invalid CSRF Token");
+    return response(res, 403, "Invalid CSRF Token");
   }
 
   return next();

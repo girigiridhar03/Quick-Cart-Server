@@ -21,7 +21,7 @@ export const errorHandler = (err, req, res, next) => {
     return response(res, 403, err.message);
   }
   if (err instanceof AppError) {
-    return response(res, 400, err.message);
+    return response(res, err.statusCode, err.message);
   }
 
   if (err.code === 11000) {

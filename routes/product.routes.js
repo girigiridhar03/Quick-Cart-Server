@@ -36,7 +36,7 @@ productRouter.patch(
   productControllers.updateProduct,
 );
 productRouter.get(
-  "/:productId/related",
+  "/:slugId/related",
   userExist,
   productControllers.getRelatedProducts,
 );

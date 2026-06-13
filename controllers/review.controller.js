@@ -11,18 +11,19 @@ import Product from "../models/product.model.js";
 
 export const addReview = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const { productId } = req.params;
+  const { slugId } = req.params;
   const { rating, title, body } = req.body;
-
-  if (!mongoose.isValidObjectId(productId)) {
-    throw new AppError(`Invalid Id: ${productId}`, 400);
+  const reviewExist = await Review.findOne({ user: userId });
+  if (reviewExist) {
+    throw new AppError(
+      `You have already reviewed this product. Please edit your existing review if you'd like to make changes.`,
+      409,
+    );
   }
-
   const product = await Product.findOne({
-    _id: productId,
+    slug: slugId,
     isActive: true,
   });
-  console.log(product, productId);
   if (!product) {
     throw new AppError("Product not found", 404);
   }
@@ -54,7 +55,7 @@ export const addReview = asyncHandler(async (req, res) => {
   try {
     const newReview = await Review.create({
       user: userId,
-      product: productId,
+      product: product._id,
       rating,
       title,
       body,
@@ -98,26 +99,22 @@ export const addReview = asyncHandler(async (req, res) => {
 });
 
 export const getAllReviews = asyncHandler(async (req, res) => {
-  const { productId } = req.params;
-  const { role } = req.user;
+  const { slugId } = req.params;
+  const { role } = req?.user ?? {};
   const { search, sort, isHidden } = req.query;
 
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 15;
   const skip = (page - 1) * limit;
 
-  if (!mongoose.isValidObjectId(productId)) {
-    throw new AppError(`Invalid Product Id: ${productId}`, 400);
-  }
-
-  const product = await Product.exists({ _id: productId });
+  const product = await Product.findOne({ slug: slugId }).select("_id");
 
   if (!product) {
     throw new AppError("Product not found", 404);
   }
 
   let matchStage = {
-    product: new mongoose.Types.ObjectId(productId),
+    product: product._id,
   };
 
   if (role !== "ADMIN") {
@@ -458,15 +455,18 @@ export const editReview = asyncHandler(async (req, res) => {
 });
 
 export const reviewSummary = asyncHandler(async (req, res) => {
-  const { productId } = req.params;
-  if (!mongoose.isValidObjectId(productId)) {
-    throw new AppError(`Invalid Product ID: ${productId}`);
+  const { slugId } = req.params;
+
+  const product = await Product.findOne({ slug: slugId }).select("_id");
+
+  if (!product) {
+    throw new AppError("Product Not Found", 404);
   }
 
   const summary = await Review.aggregate([
     {
       $match: {
-        product: new mongoose.Types.ObjectId(productId),
+        product: product._id,
       },
     },
     {
@@ -483,6 +483,11 @@ export const reviewSummary = asyncHandler(async (req, res) => {
         totalReviews: {
           $sum: "$count",
         },
+        totalRatingValue: {
+          $sum: {
+            $multiply: ["$_id", "$count"],
+          },
+        },
         ratings: {
           $push: {
             rating: "$_id",
@@ -492,24 +497,52 @@ export const reviewSummary = asyncHandler(async (req, res) => {
       },
     },
     {
-      $unwind: "$ratings",
-    },
-    {
       $project: {
         _id: 0,
-        rating: "$ratings.rating",
-        count: "$ratings.count",
-        percentage: {
-          $multiply: [
+        totalReviews: 1,
+        averageRating: {
+          $round: [
             {
-              $divide: ["$ratings.count", "$totalReviews"],
+              $divide: ["$totalRatingValue", "$totalReviews"],
             },
-            100,
+            1,
           ],
+        },
+        ratings: {
+          $map: {
+            input: "$ratings",
+            as: "item",
+            in: {
+              rating: "$$item.rating",
+              count: "$$item.count",
+              percentage: {
+                $round: [
+                  {
+                    $multiply: [
+                      {
+                        $divide: ["$$item.count", "$totalReviews"],
+                      },
+                      100,
+                    ],
+                  },
+                  1,
+                ],
+              },
+            },
+          },
         },
       },
     },
   ]);
-
-  return response(res, 200, "review summary fetched successfully", summary);
+  const ratingSummary = summary[0] || {
+    totalReviews: 0,
+    averageRating: 0,
+    ratings: [],
+  };
+  return response(
+    res,
+    200,
+    "review summary fetched successfully",
+    ratingSummary,
+  );
 });

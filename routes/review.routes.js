@@ -26,7 +26,7 @@ reviewRouter.patch(
 );
 
 reviewRouter.post(
-  "/product/:productId",
+  "/product/:slugId",
   csrfMiddleware,
   authMiddleware,
   upload.array("images", 5),
@@ -34,9 +34,9 @@ reviewRouter.post(
   reviewControllers.addReview,
 );
 
-reviewRouter.get("/product/:productId", reviewControllers.getAllReviews);
+reviewRouter.get("/product/:slugId", reviewControllers.getAllReviews);
 reviewRouter.get(
-  "/product/:productId/reviewsummary",
+  "/product/:slugId/reviewsummary",
   reviewControllers.reviewSummary,
 );
 

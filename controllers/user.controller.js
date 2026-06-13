@@ -272,10 +272,7 @@ export const updateUserDetails = asyncHandler(async (req, res) => {
       await deleteFileFromCloudinary(oldPublicId);
     }
   } catch (error) {
-    if (uploadedResult) {
-      await deleteFileFromCloudinary(uploadedResult.public_id);
-    }
-
+   
     throw error;
   }
 

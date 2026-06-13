@@ -460,7 +460,7 @@ export const deleteImages = asyncHandler(async (req, res) => {
   }
 
   if (!mongoose.isValidObjectId(imageId)) {
-    throw new AppError(`Invalid Product Image Id: ${imageId}`);
+    throw new AppError(`Invalid Product Image Id: ${imageId}`, 400);
   }
 
   const product = await Product.findOneAndUpdate(
@@ -527,14 +527,10 @@ export const getSingleProduct = asyncHandler(async (req, res) => {
 });
 
 export const getRelatedProducts = asyncHandler(async (req, res) => {
-  const { productId } = req.params;
+  const { slugId } = req.params;
   const userId = req?.user?.id ?? null;
 
-  if (!mongoose.isValidObjectId(productId)) {
-    throw new AppError(`Invalid Product ID: ${productId}`, 400);
-  }
-
-  const product = await Product.findById(productId).select(
+  const product = await Product.findOne({ slug: slugId }).select(
     "category subCategory tags",
   );
 
