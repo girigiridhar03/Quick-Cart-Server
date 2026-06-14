@@ -233,6 +233,7 @@ export const getAllReviews = asyncHandler(async (req, res) => {
     productDetails: 1,
     helpfulYesCount: 1,
     helpfulNoCount: 1,
+    createdAt: 1,
   };
 
   const sortObj = {
@@ -509,25 +510,32 @@ export const reviewSummary = asyncHandler(async (req, res) => {
           ],
         },
         ratings: {
-          $map: {
-            input: "$ratings",
-            as: "item",
-            in: {
-              rating: "$$item.rating",
-              count: "$$item.count",
-              percentage: {
-                $round: [
-                  {
-                    $multiply: [
+          $sortArray: {
+            input: {
+              $map: {
+                input: "$ratings",
+                as: "item",
+                in: {
+                  rating: "$$item.rating",
+                  count: "$$item.count",
+                  percentage: {
+                    $round: [
                       {
-                        $divide: ["$$item.count", "$totalReviews"],
+                        $multiply: [
+                          {
+                            $divide: ["$$item.count", "$totalReviews"],
+                          },
+                          100,
+                        ],
                       },
-                      100,
+                      1,
                     ],
                   },
-                  1,
-                ],
+                },
               },
+            },
+            sortBy: {
+              rating: -1,
             },
           },
         },
@@ -536,9 +544,25 @@ export const reviewSummary = asyncHandler(async (req, res) => {
   ]);
   const ratingSummary = summary[0] || {
     totalReviews: 0,
-    averageRating: 0,
+    averageRating: 0.0,
     ratings: [],
   };
+
+  const defaultRatings = Array.from({ length: 5 }, (_, i) => ({
+    rating: 5 - i,
+    count: 0,
+    percentage: 0,
+  }));
+
+  const ratingsMap = new Map(
+    ratingSummary.ratings.map((item) => {
+      return [item.rating, item];
+    }),
+  );
+
+  ratingSummary.ratings = defaultRatings.map(
+    (item) => ratingsMap.get(item.rating) || item,
+  );
   return response(
     res,
     200,
