@@ -100,7 +100,7 @@ export const addReview = asyncHandler(async (req, res) => {
 
 export const getAllReviews = asyncHandler(async (req, res) => {
   const { slugId } = req.params;
-  const { role } = req?.user ?? {};
+  const { role, id } = req?.user ?? {};
   const { search, sort, isHidden } = req.query;
 
   const page = parseInt(req.query.page) || 1;
@@ -286,15 +286,26 @@ export const getAllReviews = asyncHandler(async (req, res) => {
         productDetails: { $arrayElemAt: ["$productDetails", 0] },
         helpfulYesCount: { $size: "$helpfulYes" },
         helpfulNoCount: { $size: "$helpfulNo" },
+
+        ...(id
+          ? {
+              isMyReview: {
+                $eq: ["$user", new mongoose.Types.ObjectId(id)],
+              },
+            }
+          : {}),
       },
     },
 
     ...helpfulLookUpStages,
     {
-      $project: role === "ADMIN" ? adminProject : clientProject,
+      $sort: {
+        isMyReview: -1,
+        ...stageSort,
+      },
     },
     {
-      $sort: stageSort,
+      $project: role === "ADMIN" ? adminProject : clientProject,
     },
     {
       $skip: (page - 1) * limit,
@@ -457,7 +468,7 @@ export const editReview = asyncHandler(async (req, res) => {
 
 export const reviewSummary = asyncHandler(async (req, res) => {
   const { slugId } = req.params;
-
+  const { id } = req?.user ?? {};
   const product = await Product.findOne({ slug: slugId }).select("_id");
 
   if (!product) {
@@ -471,10 +482,20 @@ export const reviewSummary = asyncHandler(async (req, res) => {
       },
     },
     {
+      $addFields: {
+        isMyReview: {
+          $eq: ["$user", new mongoose.Types.ObjectId(id)],
+        },
+      },
+    },
+    {
       $group: {
         _id: "$rating",
         count: {
           $sum: 1,
+        },
+        myReviewExists: {
+          $max: "$isMyReview",
         },
       },
     },
@@ -489,6 +510,9 @@ export const reviewSummary = asyncHandler(async (req, res) => {
             $multiply: ["$_id", "$count"],
           },
         },
+        isMyReview: {
+          $max: "$myReviewExists",
+        },
         ratings: {
           $push: {
             rating: "$_id",
@@ -500,6 +524,7 @@ export const reviewSummary = asyncHandler(async (req, res) => {
     {
       $project: {
         _id: 0,
+        isMyReview: 1,
         totalReviews: 1,
         averageRating: {
           $round: [
@@ -542,8 +567,10 @@ export const reviewSummary = asyncHandler(async (req, res) => {
       },
     },
   ]);
+
   const ratingSummary = summary[0] || {
     totalReviews: 0,
+    isMyReview: false,
     averageRating: 0.0,
     ratings: [],
   };

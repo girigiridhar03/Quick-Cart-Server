@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   authMiddleware,
   csrfMiddleware,
+  userExist,
 } from "../middlewares/auth.middleware.js";
 import * as reviewControllers from "../controllers/review.controller.js";
 import { validate } from "../middlewares/validate.middleware.js";
@@ -34,9 +35,14 @@ reviewRouter.post(
   reviewControllers.addReview,
 );
 
-reviewRouter.get("/product/:slugId", reviewControllers.getAllReviews);
+reviewRouter.get(
+  "/product/:slugId",
+  userExist,
+  reviewControllers.getAllReviews,
+);
 reviewRouter.get(
   "/product/:slugId/reviewsummary",
+  userExist,
   reviewControllers.reviewSummary,
 );
 
