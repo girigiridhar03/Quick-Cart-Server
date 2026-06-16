@@ -512,18 +512,86 @@ export const deleteImages = asyncHandler(async (req, res) => {
 
 export const getSingleProduct = asyncHandler(async (req, res) => {
   const { slug } = req.params;
+  const { id } = req?.user ?? {};
 
-  const product = await Product.findOne({ slug })
-    .populate("category", "name slug  bgColor icon")
-    .populate("subCategory", "name slug")
-    .select("-updatedAt")
-    .lean();
+  const product = await Product.aggregate([
+    {
+      $match: {
+        slug,
+      },
+    },
+    {
+      $lookup: {
+        from: "categories",
+        localField: "category",
+        foreignField: "_id",
+        pipeline: [
+          {
+            $project: {
+              name: 1,
+              slug: 1,
+              bgColor: 1,
+              icon: 1,
+            },
+          },
+        ],
+        as: "category",
+      },
+    },
+    {
+      $lookup: {
+        from: "subcategories",
+        localField: "subCategory",
+        foreignField: "_id",
+        pipeline: [{ $project: { name: 1, slug: 1 } }],
+        as: "subCategory",
+      },
+    },
+    {
+      $lookup: {
+        from: "carts",
+        let: { productId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$product", "$$productId"] },
+                  { $eq: ["$user", new mongoose.Types.ObjectId(id)] },
+                ],
+              },
+            },
+          },
+        ],
+        as: "cartData",
+      },
+    },
+    {
+      $addFields: {
+        category: {
+          $arrayElemAt: ["$category", 0],
+        },
+        subCategory: {
+          $arrayElemAt: ["$subCategory", 0],
+        },
+        cartQuantity: {
+          $ifNull: [{ $arrayElemAt: ["$cartData.quantity", 0] }, 0],
+        },
+      },
+    },
+    {
+      $project: {
+        updatedAt: 0,
+        cartData: 0,
+      },
+    },
+  ]);
 
   if (!product) {
     throw new AppError("Product not found", 404);
   }
 
-  return response(res, 200, "Single product fetched successfully", product);
+  return response(res, 200, "Single product fetched successfully", product[0]);
 });
 
 export const getRelatedProducts = asyncHandler(async (req, res) => {

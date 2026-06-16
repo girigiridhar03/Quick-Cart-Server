@@ -25,7 +25,7 @@ productRouter.post(
 productRouter.get("/", userExist, productControllers.getAllProducts);
 productRouter.get("/brands", productControllers.getAllBrands);
 
-productRouter.get("/:slug", productControllers.getSingleProduct);
+productRouter.get("/:slug",userExist, productControllers.getSingleProduct);
 productRouter.patch(
   "/:id",
   csrfMiddleware,
