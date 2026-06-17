@@ -13,19 +13,22 @@ export const addReview = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { slugId } = req.params;
   const { rating, title, body } = req.body;
-  const reviewExist = await Review.findOne({ user: userId });
-  if (reviewExist) {
-    throw new AppError(
-      `You have already reviewed this product. Please edit your existing review if you'd like to make changes.`,
-      409,
-    );
-  }
   const product = await Product.findOne({
     slug: slugId,
     isActive: true,
   });
   if (!product) {
     throw new AppError("Product not found", 404);
+  }
+  const reviewExist = await Review.findOne({
+    user: userId,
+    product: product._id,
+  });
+  if (reviewExist) {
+    throw new AppError(
+      `You have already reviewed this product. Please edit your existing review if you'd like to make changes.`,
+      409,
+    );
   }
 
   let uploadedImages = [];
@@ -351,6 +354,10 @@ export const deleteReview = asyncHandler(async (req, res) => {
 
   await review.deleteOne();
 
+  await Promise.all(
+    review.images.map((img) => deleteFileFromCloudinary(img.publicId)),
+  );
+
   const result = await Review.aggregate([
     { $match: { product: review.product } },
     {
@@ -596,4 +603,41 @@ export const reviewSummary = asyncHandler(async (req, res) => {
     "review summary fetched successfully",
     ratingSummary,
   );
+});
+
+export const deleteReviewImage = asyncHandler(async (req, res) => {
+  const { reviewId, imageId } = req.params;
+  const { id } = req.user;
+
+  if (!mongoose.isValidObjectId(reviewId)) {
+    throw new AppError(`Invalid review ID: ${reviewId}`, 400);
+  }
+
+  if (!mongoose.isValidObjectId(imageId)) {
+    throw new AppError(`Invalid image ID: ${imageId}`, 400);
+  }
+
+  const review = await Review.findOne({
+    user: id,
+    _id: reviewId,
+    "images._id": imageId,
+  });
+
+  if (!review) {
+    throw new AppError("Review not found", 404);
+  }
+
+  const deleteImg = review.images.find(
+    (item) => item._id.toString() === imageId,
+  );
+
+  await deleteFileFromCloudinary(deleteImg.publicId);
+
+  await Review.findByIdAndUpdate(reviewId, {
+    $pull: {
+      images: { _id: imageId },
+    },
+  });
+
+  return response(res, 200, "Review Image Deleted Successfully");
 });
