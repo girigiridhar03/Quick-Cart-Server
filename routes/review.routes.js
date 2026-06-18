@@ -25,6 +25,12 @@ reviewRouter.patch(
   validate(reviewValidations.editReviewSchema),
   reviewControllers.editReview,
 );
+reviewRouter.patch(
+  "/:reviewId/helpful",
+  csrfMiddleware,
+  authMiddleware,
+  reviewControllers.helpfulReview,
+);
 reviewRouter.delete(
   "/:reviewId/image/:imageId",
   csrfMiddleware,

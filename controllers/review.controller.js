@@ -223,6 +223,8 @@ export const getAllReviews = asyncHandler(async (req, res) => {
     helpfulNoCount: 1,
     helpfulYesUsers: 1,
     helpfulNoUsers: 1,
+    isHelpYes: 1,
+    isHelpNo: 1,
     createdAt: 1,
   };
 
@@ -236,6 +238,8 @@ export const getAllReviews = asyncHandler(async (req, res) => {
     productDetails: 1,
     helpfulYesCount: 1,
     helpfulNoCount: 1,
+    isHelpYes: 1,
+    isHelpNo: 1,
     createdAt: 1,
   };
 
@@ -273,7 +277,9 @@ export const getAllReviews = asyncHandler(async (req, res) => {
         as: "userDetails",
       },
     },
-    { $addFields: { userDetails: { $arrayElemAt: ["$userDetails", 0] } } },
+    {
+      $addFields: { userDetails: { $arrayElemAt: ["$userDetails", 0] } },
+    },
     ...(search ? [{ $match: { "userDetails.0": { $exists: true } } }] : []),
     {
       $lookup: {
@@ -289,6 +295,12 @@ export const getAllReviews = asyncHandler(async (req, res) => {
         productDetails: { $arrayElemAt: ["$productDetails", 0] },
         helpfulYesCount: { $size: "$helpfulYes" },
         helpfulNoCount: { $size: "$helpfulNo" },
+        isHelpYes: {
+          $in: [new mongoose.Types.ObjectId(id), "$helpfulYes"],
+        },
+        isHelpNo: {
+          $in: [new mongoose.Types.ObjectId(id), "$helpfulNo"],
+        },
 
         ...(id
           ? {
@@ -640,4 +652,67 @@ export const deleteReviewImage = asyncHandler(async (req, res) => {
   });
 
   return response(res, 200, "Review Image Deleted Successfully");
+});
+
+export const helpfulReview = asyncHandler(async (req, res) => {
+  const { reviewId } = req.params;
+  const { id } = req?.user ?? {};
+  const { action } = req?.body;
+  if (!mongoose.isValidObjectId(reviewId)) {
+    throw new AppError(`Invalid Review ID: ${reviewId}`, 400);
+  }
+
+  if (!action || !["yes", "no"].includes(action)) {
+    throw new AppError("Action must be either yes or no", 400);
+  }
+
+  const review = await Review.findById(reviewId);
+
+  if (!review) {
+    throw new AppError("Review not found", 404);
+  }
+
+  let alreadyVoted = false;
+  let message = "";
+
+  if (action === "yes") {
+    alreadyVoted = review.helpfulYes.some(
+      (item) => item.toString() === id.toString(),
+    );
+
+    if (alreadyVoted) {
+      review.helpfulYes = review.helpfulYes.filter(
+        (item) => item.toString() !== id.toString(),
+      );
+      message = "Helpful vote removed successfully";
+    } else {
+      review.helpfulYes.push(id);
+
+      review.helpfulNo = review.helpfulNo.filter(
+        (item) => item.toString() !== id.toString(),
+      );
+      message = "Marked review as helpful";
+    }
+  }
+  if (action === "no") {
+    alreadyVoted = review.helpfulNo.some(
+      (item) => item.toString() === id.toString(),
+    );
+
+    if (alreadyVoted) {
+      review.helpfulNo = review.helpfulNo.filter(
+        (item) => item.toString() !== id.toString(),
+      );
+      message = "Helpful feedback removed successfully";
+    } else {
+      review.helpfulNo.push(id);
+      review.helpfulYes = review.helpfulYes.filter(
+        (item) => item.toString() !== id.toString(),
+      );
+      message = "Marked review as not helpful";
+    }
+  }
+
+  await review.save();
+  return response(res, 200, message, review);
 });
