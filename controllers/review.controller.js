@@ -104,7 +104,7 @@ export const addReview = asyncHandler(async (req, res) => {
 export const getAllReviews = asyncHandler(async (req, res) => {
   const { slugId } = req.params;
   const { role, id } = req?.user ?? {};
-  const { search, sort, isHidden } = req.query;
+  const { search, sort, isHidden, rating } = req.query;
 
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 15;
@@ -119,6 +119,10 @@ export const getAllReviews = asyncHandler(async (req, res) => {
   let matchStage = {
     product: product._id,
   };
+
+  if (rating && Number(rating) > 0 && Number(rating) <= 5) {
+    matchStage.rating = Number(rating);
+  }
 
   if (role !== "ADMIN") {
     matchStage.isHidden = false;
@@ -249,7 +253,9 @@ export const getAllReviews = asyncHandler(async (req, res) => {
     highestRated: { rating: -1 },
     lowestRated: { rating: 1 },
     mostFlagged: { flagCount: -1 },
+    mostHelpful: { helpfulYesCount: -1 },
   };
+
   if (sort === "mostFlagged" && role !== "ADMIN") {
     throw new AppError("Not authorized", 403);
   }
