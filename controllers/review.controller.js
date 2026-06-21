@@ -128,13 +128,6 @@ export const getAllReviews = asyncHandler(async (req, res) => {
     matchStage.isHidden = false;
   }
 
-  if (search && search.trim()) {
-    matchStage.$or = [
-      { title: { $regex: search, $options: "i" } },
-      { body: { $regex: search, $options: "i" } },
-    ];
-  }
-
   if (
     isHidden !== undefined &&
     ["true", "false"].includes(isHidden) &&
@@ -143,34 +136,9 @@ export const getAllReviews = asyncHandler(async (req, res) => {
     matchStage.isHidden = isHidden === "true";
   }
 
-  const userMatchStage = search
-    ? {
-        $and: [
-          { $eq: ["$_id", "$$userId"] },
-          {
-            $or: [
-              {
-                $regexMatch: { input: "$email", regex: search, options: "i" },
-              },
-              {
-                $regexMatch: {
-                  input: "$username",
-                  regex: search,
-                  options: "i",
-                },
-              },
-              {
-                $regexMatch: {
-                  input: "$phoneNumber",
-                  regex: search,
-                  options: "i",
-                },
-              },
-            ],
-          },
-        ],
-      }
-    : { $eq: ["$_id", "$$userId"] };
+  const userMatchStage = {
+    $eq: ["$_id", "$$userId"],
+  };
 
   const userProject =
     role === "ADMIN"
@@ -262,7 +230,7 @@ export const getAllReviews = asyncHandler(async (req, res) => {
 
   const stageSort = sortObj[sort] ?? { createdAt: -1 };
 
-  const reviews = await Review.aggregate([
+  const result = await Review.aggregate([
     {
       $match: matchStage,
     },
@@ -284,59 +252,142 @@ export const getAllReviews = asyncHandler(async (req, res) => {
       },
     },
     {
-      $addFields: { userDetails: { $arrayElemAt: ["$userDetails", 0] } },
+      $addFields: {
+        userDetails: {
+          $arrayElemAt: ["$userDetails", 0],
+        },
+      },
     },
-    ...(search ? [{ $match: { "userDetails.0": { $exists: true } } }] : []),
+
+    ...(search?.trim()
+      ? [
+          {
+            $match: {
+              $or: [
+                {
+                  title: {
+                    $regex: search.trim(),
+                    $options: "i",
+                  },
+                },
+                {
+                  body: {
+                    $regex: search.trim(),
+                    $options: "i",
+                  },
+                },
+                {
+                  "userDetails.username": {
+                    $regex: search.trim(),
+                    $options: "i",
+                  },
+                },
+                ...(role === "ADMIN"
+                  ? [
+                      {
+                        "userDetails.email": {
+                          $regex: search.trim(),
+                          $options: "i",
+                        },
+                      },
+                      {
+                        "userDetails.phoneNumber": {
+                          $regex: search.trim(),
+                          $options: "i",
+                        },
+                      },
+                    ]
+                  : []),
+              ],
+            },
+          },
+        ]
+      : []),
+
     {
       $lookup: {
         from: "products",
         localField: "product",
         foreignField: "_id",
-        pipeline: [{ $project: { name: 1, slug: 1, productImages: 1 } }],
+        pipeline: [
+          {
+            $project: {
+              name: 1,
+              slug: 1,
+              productImages: 1,
+            },
+          },
+        ],
         as: "productDetails",
       },
     },
+
     {
       $addFields: {
-        productDetails: { $arrayElemAt: ["$productDetails", 0] },
-        helpfulYesCount: { $size: "$helpfulYes" },
-        helpfulNoCount: { $size: "$helpfulNo" },
-        isHelpYes: {
-          $in: [new mongoose.Types.ObjectId(id), "$helpfulYes"],
+        productDetails: {
+          $arrayElemAt: ["$productDetails", 0],
         },
-        isHelpNo: {
-          $in: [new mongoose.Types.ObjectId(id), "$helpfulNo"],
+        helpfulYesCount: {
+          $size: "$helpfulYes",
+        },
+        helpfulNoCount: {
+          $size: "$helpfulNo",
         },
 
         ...(id
           ? {
+              isHelpYes: {
+                $in: [new mongoose.Types.ObjectId(id), "$helpfulYes"],
+              },
+              isHelpNo: {
+                $in: [new mongoose.Types.ObjectId(id), "$helpfulNo"],
+              },
               isMyReview: {
                 $eq: ["$user", new mongoose.Types.ObjectId(id)],
               },
             }
-          : {}),
+          : {
+              isHelpYes: false,
+              isHelpNo: false,
+              isMyReview: false,
+            }),
       },
     },
 
     ...helpfulLookUpStages,
-    {
-      $sort: {
-        isMyReview: -1,
-        ...stageSort,
-      },
-    },
+
     {
       $project: role === "ADMIN" ? adminProject : clientProject,
     },
+
     {
-      $skip: (page - 1) * limit,
-    },
-    {
-      $limit: limit,
+      $facet: {
+        reviews: [
+          {
+            $sort: {
+              isMyReview: -1,
+              ...stageSort,
+            },
+          },
+          {
+            $skip: skip,
+          },
+          {
+            $limit: limit,
+          },
+        ],
+
+        totalCount: [
+          {
+            $count: "count",
+          },
+        ],
+      },
     },
   ]);
 
-  const totalReviews = await Review.countDocuments(matchStage);
+  const reviews = result[0].reviews;
+  const totalReviews = result[0].totalCount[0]?.count || 0;
 
   return response(res, 200, "Reviews fetched successfully", {
     reviews,
