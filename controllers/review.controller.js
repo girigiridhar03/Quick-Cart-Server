@@ -198,6 +198,8 @@ export const getAllReviews = asyncHandler(async (req, res) => {
     isHelpYes: 1,
     isHelpNo: 1,
     createdAt: 1,
+    isReported: 1,
+    isMyReview: 1,
   };
 
   const clientProject = {
@@ -213,6 +215,8 @@ export const getAllReviews = asyncHandler(async (req, res) => {
     isHelpYes: 1,
     isHelpNo: 1,
     createdAt: 1,
+    isReported: 1,
+    isMyReview: 1,
   };
 
   const sortObj = {
@@ -321,6 +325,33 @@ export const getAllReviews = asyncHandler(async (req, res) => {
         as: "productDetails",
       },
     },
+    ...(id
+      ? [
+          {
+            $lookup: {
+              from: "reports",
+              let: {
+                reportId: "$_id",
+                loggedUserId: new mongoose.Types.ObjectId(id),
+              },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $and: [
+                        { $eq: ["$targetedId", "$$reportId"] },
+                        { $eq: ["$reportedBy", "$$loggedUserId"] },
+                        { $eq: ["$targetType", "Review"] },
+                      ],
+                    },
+                  },
+                },
+              ],
+              as: "reportDetails",
+            },
+          },
+        ]
+      : []),
 
     {
       $addFields: {
@@ -333,6 +364,7 @@ export const getAllReviews = asyncHandler(async (req, res) => {
         helpfulNoCount: {
           $size: "$helpfulNo",
         },
+        isReported: id ? { $gt: [{ $size: "$reportDetails" }, 0] } : false,
 
         ...(id
           ? {
@@ -350,6 +382,7 @@ export const getAllReviews = asyncHandler(async (req, res) => {
               isHelpYes: false,
               isHelpNo: false,
               isMyReview: false,
+              isReported: false,
             }),
       },
     },
